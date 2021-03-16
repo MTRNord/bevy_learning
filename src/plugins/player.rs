@@ -68,7 +68,7 @@ fn spawn_player(
                 player_start.px[0] as f32,
                 // The player y position is the entity's y position from the map data, but
                 // multiplied by negative one because in the LDtk map +y means down and not up.
-                -(player_start.px[1]) as f32,
+                -(player_start.px[1] - 1) as f32,
                 // Spawn the player with the z value we determined earlier
                 player_z,
             );
@@ -176,22 +176,15 @@ fn player_movement(
 
         // assuming there is exactly one player entity, so this is OK
         if let Some((_, mut player_transform)) = player.iter_mut().next() {
-            let new_coords = player_transform.translation + translation;
-            let rounded_x = new_coords.x.round();
-            let rounded_y = new_coords.y.round();
-            let rounded_cords = Vec3::new(rounded_x, rounded_y, new_coords.z);
-            if can_move_to_requested_coordinate(&game_state, rounded_cords, 16, 16) {
-                player_transform.translation += translation;
-            }
-        }
-        // assuming there is exactly one camera entity, so this is OK
-        if let Some(mut camera_transform) = camera.iter_mut().next() {
-            let new_coords = camera_transform.translation + translation;
-            let rounded_x = new_coords.x.round();
-            let rounded_y = new_coords.y.round();
-            let rounded_cords = Vec3::new(rounded_x, rounded_y, new_coords.z);
-            if can_move_to_requested_coordinate(&game_state, rounded_cords, 16, 16) {
-                camera_transform.translation += translation;
+            if let Some(mut camera_transform) = camera.iter_mut().next() {
+                let new_coords = player_transform.translation + translation;
+                let rounded_x = new_coords.x.round();
+                let rounded_y = new_coords.y.round();
+                let rounded_cords = Vec3::new(rounded_x, rounded_y, new_coords.z);
+                if can_move_to_requested_coordinate(&game_state, rounded_cords, 16, 16) {
+                    player_transform.translation += translation;
+                    camera_transform.translation += translation;
+                }
             }
         }
     }

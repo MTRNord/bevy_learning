@@ -77,8 +77,8 @@ fn one_d_to_two_d_coordinate(
     tile_height: f32,
 ) -> Vec2 {
     Vec2::new(
-        (((coordinate % row_length) * tile_width) + (tile_width / 2.0)).round() as f32,
-        ((-(coordinate / row_length * tile_height)) - (tile_height / 2.0)).round() as f32,
+        ((coordinate % row_length).round() * tile_width + 11.0).round() as f32,
+        (-((coordinate / row_length).round() * tile_height + 8.0)).round() as f32,
     )
 }
 
