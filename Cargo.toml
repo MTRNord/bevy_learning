@@ -1,0 +1,26 @@
+[package]
+name = "two_d_world_bevy"
+version = "0.1.0"
+authors = ["MTRNord <mtrnord1@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy_prototype_inline_assets = "0.1.1"
+bevy_discovery = "0.1.0"
+#kurinji = "1.0.5"
+bevy_ldtk = {version = "0.4.2", features = ["bevy-unstable"]}
+
+[dependencies.bevy]
+git = "https://github.com/bevyengine/bevy"
+rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"
+features = ["dynamic"]
+
+[dependencies.bevy_rapier2d]
+git = "https://github.com/alec-deason/bevy_rapier.git"
+branch = "tracking_changes_for_bevy_0.5"
+features = [ "simd-stable", "parallel" ]
+
+[patch.crates-io]
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"}
