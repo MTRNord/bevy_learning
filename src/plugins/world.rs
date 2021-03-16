@@ -1,6 +1,7 @@
 use crate::GameState;
 use bevy::prelude::*;
-use bevy_ldtk::{LdtkMapBundle, LdtkMapConfig};
+use bevy_ldtk::{LdtkMap, LdtkMapBundle, LdtkMapConfig};
+use rayon::prelude::*;
 
 pub struct MainCamera;
 
@@ -11,14 +12,74 @@ pub struct WorldState {
     pub level: usize,
     pub requested_level: usize,
     pub world: Option<Entity>,
+    pub collisions: Vec<Vec2>,
 }
 
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(draw.system());
+        app.add_system(draw.system())
+            .add_system(setup_collisions.system());
     }
+}
+
+pub fn setup_collisions(
+    map_query: Query<&Handle<LdtkMap>>,
+    map_assets: Res<Assets<LdtkMap>>,
+    mut game_state: ResMut<GameState>,
+) {
+    if game_state.world_state.collisions_loaded
+        && game_state.world_state.level == game_state.world_state.requested_level
+    {
+        return;
+    }
+
+    // Loop through all of the maps
+    for map_handle in map_query.iter() {
+        // We have to `if let` here because asset server may not have finished loading
+        // the map yet.
+        if let Some(map) = map_assets.get(map_handle) {
+            let level_idx = game_state.world_state.level;
+
+            // Get the level from the project
+            let level = &map.project.levels[level_idx];
+
+            // Find the collision layer
+            let collision_layer = level
+                .layer_instances
+                .as_ref() // get a reference to the layer instances
+                .unwrap() // Unwrap the option ( this could be None, if there are no layers )
+                .iter() // Iterate over the layers
+                .find(|&x| x.__identifier == "Collisions") // Filter on the one we want
+                .unwrap(); // Unwrap it ( would be None if it could not find a layer "Collisions" )
+
+            // Calculate collider center coordinates
+            game_state.world_state.collisions = collision_layer
+                .int_grid_csv
+                .clone()
+                .into_par_iter()
+                .enumerate()
+                .filter(|(_, object)| *object != 2 && *object != 0)
+                .map(|(i, _)| {
+                    one_d_to_two_d_coordinate(i as f32, collision_layer.__c_wid as f32, 16.0, 16.0)
+                })
+                .collect();
+            game_state.world_state.collisions_loaded = true;
+        }
+    }
+}
+
+fn one_d_to_two_d_coordinate(
+    coordinate: f32,
+    row_length: f32,
+    tile_width: f32,
+    tile_height: f32,
+) -> Vec2 {
+    Vec2::new(
+        (((coordinate % row_length) * tile_width) + (tile_width / 2.0)).round() as f32,
+        ((-(coordinate / row_length * tile_height)) - (tile_height / 2.0)).round() as f32,
+    )
 }
 
 fn draw(

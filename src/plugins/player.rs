@@ -6,6 +6,7 @@ use crate::GameState;
 use bevy::math::Vec3Swizzles;
 use bevy::prelude::*;
 use bevy_ldtk::LdtkMap;
+use rayon::prelude::*;
 use std::convert::TryInto;
 
 pub struct PlayerPlugin;
@@ -22,7 +23,6 @@ fn spawn_player(
     commands: &mut Commands,
     map_query: Query<&Handle<LdtkMap>>,
     map_assets: Res<Assets<LdtkMap>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
     mut camera: Query<&mut Transform, With<MainCamera>>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
@@ -68,7 +68,7 @@ fn spawn_player(
                 player_start.px[0] as f32,
                 // The player y position is the entity's y position from the map data, but
                 // multiplied by negative one because in the LDtk map +y means down and not up.
-                -(player_start.px[1] as f32 - (player_start.height as f32 / 2.0)),
+                -(player_start.px[1]) as f32,
                 // Spawn the player with the z value we determined earlier
                 player_z,
             );
@@ -135,8 +135,6 @@ fn spawn_player(
 fn player_movement(
     time: Res<Time>,
     game_state: ResMut<GameState>,
-    map_query: Query<&Handle<LdtkMap>>,
-    map_assets: Res<Assets<LdtkMap>>,
     input: Res<Input<KeyCode>>,
     mut player: Query<(&PlayerBundle, &mut Transform)>,
     mut camera: Query<&mut Transform, With<MainCamera>>,
@@ -178,27 +176,21 @@ fn player_movement(
 
         // assuming there is exactly one player entity, so this is OK
         if let Some((_, mut player_transform)) = player.iter_mut().next() {
-            if can_move_to_requested_coordinate(
-                &map_query,
-                &map_assets,
-                &game_state,
-                player_transform.translation + translation,
-                16,
-                16,
-            ) {
+            let new_coords = player_transform.translation + translation;
+            let rounded_x = new_coords.x.round();
+            let rounded_y = new_coords.y.round();
+            let rounded_cords = Vec3::new(rounded_x, rounded_y, new_coords.z);
+            if can_move_to_requested_coordinate(&game_state, rounded_cords, 16, 16) {
                 player_transform.translation += translation;
             }
         }
         // assuming there is exactly one camera entity, so this is OK
         if let Some(mut camera_transform) = camera.iter_mut().next() {
-            if can_move_to_requested_coordinate(
-                &map_query,
-                &map_assets,
-                &game_state,
-                camera_transform.translation + translation,
-                16,
-                16,
-            ) {
+            let new_coords = camera_transform.translation + translation;
+            let rounded_x = new_coords.x.round();
+            let rounded_y = new_coords.y.round();
+            let rounded_cords = Vec3::new(rounded_x, rounded_y, new_coords.z);
+            if can_move_to_requested_coordinate(&game_state, rounded_cords, 16, 16) {
                 camera_transform.translation += translation;
             }
         }
@@ -206,75 +198,28 @@ fn player_movement(
 }
 
 fn can_move_to_requested_coordinate(
-    map_query: &Query<&Handle<LdtkMap>>,
-    map_assets: &Res<Assets<LdtkMap>>,
     game_state: &ResMut<GameState>,
     coordinate: Vec3,
     width: i32,
     height: i32,
 ) -> bool {
-    // Loop through all of the maps
-    for map_handle in map_query.iter() {
-        // We have to `if let` here because asset server may not have finished loading
-        // the map yet.
-        if let Some(map) = map_assets.get(map_handle) {
-            let level_idx = game_state.world_state.level;
-
-            // Get the level from the project
-            let level = &map.project.levels[level_idx];
-
-            // Find the collision layer
-            let collision_layer = level
-                .layer_instances
-                .as_ref() // get a reference to the layer instances
-                .unwrap() // Unwrap the option ( this could be None, if there are no layers )
-                .iter() // Iterate over the layers
-                .find(|&x| x.__identifier == "Collisions") // Filter on the one we want
-                .unwrap(); // Unwrap it ( would be None if it could not find a layer "Collisions" )
-
-            // Do a bounding box check. Bounding boxes are 16*16 from center of the object
-            for (i, object) in collision_layer.int_grid_csv.iter().enumerate() {
-                // Skip ladders
-                if *object == 2 || *object == 0 {
-                    continue;
-                }
-
-                // Check moves
-                let object_coordinate =
-                    one_d_to_two_d_coordinate(i as f32, collision_layer.__c_wid as f32, 16.0, 16.0);
-
-                if check_intersection(
-                    coordinate.xy(),
-                    object_coordinate,
-                    Vec2::new(width as f32, height as f32),
-                    Vec2::new(16.0, 16.0),
-                ) {
-                    // We found an collision
-                    return false;
-                }
-            }
-        }
-    }
-    true
+    // Do a bounding box check. Bounding boxes are 16*16 from center of the object
+    return !game_state
+        .world_state
+        .collisions
+        .clone()
+        .par_iter()
+        .any(|object_coordinate| {
+            check_intersection(
+                coordinate.xy(),
+                object_coordinate,
+                Vec2::new(width as f32, height as f32),
+                Vec2::new(16.0, 16.0),
+            )
+        });
 }
 
-fn check_intersection(a: Vec2, b: Vec2, a_size: Vec2, b_size: Vec2) -> bool {
-    ((a.x - b.x).abs() * 2.0 < (a_size.x + b_size.x))
-        && ((a.y - b.y).abs() * 2.0 < (a_size.y + b_size.y))
-}
-
-fn two_d_to_one_d_coordinate(coordinate: Vec3, row_length: f32) -> f32 {
-    (coordinate.y * row_length) + (-coordinate.x)
-}
-
-fn one_d_to_two_d_coordinate(
-    coordinate: f32,
-    row_length: f32,
-    tile_width: f32,
-    tile_height: f32,
-) -> Vec2 {
-    Vec2::new(
-        (((coordinate % row_length) * tile_width) + (tile_width / 2.0)).round() as f32,
-        ((-(coordinate / row_length * tile_height)) - (tile_height / 2.0)).round() as f32,
-    )
+fn check_intersection(a: Vec2, b: &Vec2, a_size: Vec2, b_size: Vec2) -> bool {
+    ((a.x - b.x).abs() * 2.0 <= (a_size.x + b_size.x))
+        && ((a.y - b.y).abs() * 2.0 <= (a_size.y + b_size.y))
 }

@@ -4448,6 +4448,7 @@ dependencies = [
  "bevy_ldtk",
  "bevy_prototype_inline_assets",
  "bevy_rapier2d",
+ "rayon",
 ]
 
 [[package]]

@@ -2,6 +2,7 @@ use crate::plugins::{
     world::{MainCamera, WorldState},
     PlayerPlugin, WorldPlugin,
 };
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::render::camera::{OrthographicProjection, ScalingMode};
 use bevy::{prelude::*, window::WindowMode};
 use bevy_ldtk::*;
@@ -29,9 +30,8 @@ fn main() {
         .init_resource::<GameState>()
         .add_plugins(DefaultPlugins)
         .add_plugin(LdtkPlugin)
-        //.add_plugin(PrintDiagnosticsPlugin::default())
-        //.add_plugin(FrameTimeDiagnosticsPlugin::default())
-        //.add_system(PrintDiagnosticsPlugin::print_diagnostics_system.system())
+        .add_plugin(FrameTimeDiagnosticsPlugin::default())
+        .add_plugin(LogDiagnosticsPlugin::default())
         //.add_plugin(KurinjiPlugin::default())
         .add_startup_system(setup.system())
         .add_plugin(PlayerPlugin)
