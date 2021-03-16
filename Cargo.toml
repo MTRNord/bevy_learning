@@ -18,10 +18,18 @@ git = "https://github.com/bevyengine/bevy"
 rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"
 features = ["dynamic"]
 
-[dependencies.bevy_rapier2d]
-git = "https://github.com/alec-deason/bevy_rapier.git"
-branch = "tracking_changes_for_bevy_0.5"
-features = [ "simd-stable", "parallel" ]
+#[dependencies.bevy_rapier2d]
+#git = "https://github.com/MTRNord/bevy_rapier.git"
+#branch = "tracking_changes_for_bevy_0.5"
+#features = [ "simd-stable", "parallel" ]
 
 [patch.crates-io]
-bevy = { git = "https://github.com/bevyengine/bevy", rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"}
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"}
+
+# Enable optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
+# Maybe also enable only a small amount of optimization for our code:
+[profile.dev]
+opt-level = 1

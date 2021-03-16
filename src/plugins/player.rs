@@ -68,7 +68,7 @@ fn spawn_player(
                 player_start.px[0] as f32,
                 // The player y position is the entity's y position from the map data, but
                 // multiplied by negative one because in the LDtk map +y means down and not up.
-                -(player_start.px[1] - 1) as f32,
+                -(player_start.px[1]) as f32,
                 // Spawn the player with the z value we determined earlier
                 player_z,
             );
@@ -213,6 +213,6 @@ fn can_move_to_requested_coordinate(
 }
 
 fn check_intersection(a: Vec2, b: &Vec2, a_size: Vec2, b_size: Vec2) -> bool {
-    ((a.x - b.x).abs() * 2.0 <= (a_size.x + b_size.x))
-        && ((a.y - b.y).abs() * 2.0 <= (a_size.y + b_size.y))
+    ((a.x - b.x).abs() * 2.0 < (a_size.x + b_size.x))
+        && ((a.y - b.y).abs() * 2.0 < (a_size.y + b_size.y))
 }
