@@ -68,7 +68,7 @@ fn spawn_player(
                 player_start.px[0] as f32,
                 // The player y position is the entity's y position from the map data, but
                 // multiplied by negative one because in the LDtk map +y means down and not up.
-                -(player_start.px[1] as f32 - (player_start.height as f32 / 2.0) - 25.0),
+                -(player_start.px[1] as f32 - (player_start.height as f32 / 2.0)),
                 // Spawn the player with the z value we determined earlier
                 player_z,
             );
@@ -144,7 +144,6 @@ fn player_movement(
     let shift = input.pressed(KeyCode::LShift) || input.pressed(KeyCode::RShift);
     let _ctrl = input.pressed(KeyCode::LControl) || input.pressed(KeyCode::RControl);
     // TODO make sure we queue inputs and do all of them
-    // TODO this doesnt seem to work with holding the key down
 
     let mut direction = Vec3::zero();
 
@@ -236,7 +235,7 @@ fn can_move_to_requested_coordinate(
             // Do a bounding box check. Bounding boxes are 16*16 from center of the object
             for (i, object) in collision_layer.int_grid_csv.iter().enumerate() {
                 // Skip ladders
-                if *object == 2 {
+                if *object == 2 || *object == 0 {
                     continue;
                 }
 
@@ -247,13 +246,10 @@ fn can_move_to_requested_coordinate(
                 if check_intersection(
                     coordinate.xy(),
                     object_coordinate,
-                    width as f32,
-                    16.0,
-                    height as f32,
-                    16.0,
+                    Vec2::new(width as f32, height as f32),
+                    Vec2::new(16.0, 16.0),
                 ) {
                     // We found an collision
-                    println!("found collision");
                     return false;
                 }
             }
@@ -262,20 +258,13 @@ fn can_move_to_requested_coordinate(
     true
 }
 
-fn check_intersection(
-    a: Vec2,
-    b: Vec2,
-    a_width: f32,
-    b_width: f32,
-    a_height: f32,
-    b_height: f32,
-) -> bool {
-    ((a.x - b.x).abs() * 2.0 < (a_width + b_width))
-        && ((a.y - b.y).abs() * 2.0 < (a_height + b_height))
+fn check_intersection(a: Vec2, b: Vec2, a_size: Vec2, b_size: Vec2) -> bool {
+    ((a.x - b.x).abs() * 2.0 < (a_size.x + b_size.x))
+        && ((a.y - b.y).abs() * 2.0 < (a_size.y + b_size.y))
 }
 
 fn two_d_to_one_d_coordinate(coordinate: Vec3, row_length: f32) -> f32 {
-    (coordinate.x * row_length) + (-coordinate.y)
+    (coordinate.y * row_length) + (-coordinate.x)
 }
 
 fn one_d_to_two_d_coordinate(
@@ -285,7 +274,7 @@ fn one_d_to_two_d_coordinate(
     tile_height: f32,
 ) -> Vec2 {
     Vec2::new(
-        ((coordinate % row_length) * tile_width) as f32,
-        (-(coordinate / row_length) * tile_height) as f32,
+        (((coordinate % row_length) * tile_width) + (tile_width / 2.0)).round() as f32,
+        ((-(coordinate / row_length * tile_height)) - (tile_height / 2.0)).round() as f32,
     )
 }
