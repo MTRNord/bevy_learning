@@ -1,6 +1,6 @@
 use crate::GameState;
 use bevy::prelude::*;
-use bevy_ldtk::{LdtkMap, LdtkMapBundle, LdtkMapConfig};
+use bevy_ldtk::{LdtkMapBundle, LdtkMapConfig};
 
 pub struct MainCamera;
 
@@ -17,29 +17,7 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(draw.system())
-            .add_system(setup_collisions.system());
-        // .add_system(coordinate_at_mouse.system());
-    }
-}
-
-pub fn setup_collisions(
-    map_query: Query<&Handle<LdtkMap>>,
-    map_assets: Res<Assets<LdtkMap>>,
-    game_state: ResMut<GameState>,
-) {
-    if game_state.world_state.collisions_loaded
-        && game_state.world_state.level == game_state.world_state.requested_level
-    {
-        return;
-    }
-    // Loop through all of the maps
-    for map_handle in map_query.iter() {
-        // We have to `if let` here because asset server may not have finished loading
-        // the map yet.
-        if let Some(map) = map_assets.get(map_handle) {
-            // Do something with map data
-        }
+        app.add_system(draw.system());
     }
 }
 
