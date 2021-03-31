@@ -118,10 +118,10 @@ fn draw(
 
     for chunk_y in -2..2 {
         for chunk_x in -2..2 {
-            for y in -16..16 {
-                for x in -16..16 {
-                    let full_x = (chunk_x * 32) + x;
-                    let full_y = (chunk_y * 32) + y;
+            for y in -8..8 {
+                for x in -8..8 {
+                    let full_x = (chunk_x * 16) + x;
+                    let full_y = (chunk_y * 16) + y;
                     let coord = GridLocation(full_x, full_y);
                     if full_x == 0 && full_y == 0 {
                         continue;
