@@ -1,4 +1,5 @@
 use crate::entities::markers::Wall;
+use crate::plugins::player::PLAYER_START;
 use crate::GameState;
 use bevy::prelude::*;
 use noise::{NoiseFn, OpenSimplex, Seedable};
@@ -87,17 +88,24 @@ pub const SPRITE_HEIGHT: f32 = 16.0;
 fn setup_wall(
     grid_location: GridLocation,
     commands: &mut Commands,
-    materials: &mut ResMut<Assets<ColorMaterial>>,
+    asset_server: &Res<AssetServer>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
 ) {
+    let texture_handle = asset_server.load("tilesets/SunnyLand_by_Ansimuz-extended.png");
+    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(16.0, 16.0), 23, 21);
+    let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands
-        .spawn(SpriteBundle {
-            material: materials.add(Color::rgb(0.1, 0.1, 0.1).into()),
+        .spawn(SpriteSheetBundle {
+            sprite: TextureAtlasSprite {
+                index: 6,
+                ..Default::default()
+            },
             transform: Transform::from_translation(Vec3::new(
                 SPRITE_WIDTH * grid_location.0 as f32,
                 SPRITE_HEIGHT * grid_location.1 as f32,
                 -1.0,
             )),
-            sprite: Sprite::new(Vec2::new(SPRITE_WIDTH, SPRITE_HEIGHT)),
+            texture_atlas: texture_atlas_handle,
             ..Default::default()
         })
         .with(grid_location)
@@ -107,7 +115,8 @@ fn setup_wall(
 fn draw(
     commands: &mut Commands,
     mut game_state: ResMut<GameState>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
+    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
     if game_state.world_state.map_loaded
         && game_state.world_state.level == game_state.world_state.requested_level
@@ -131,22 +140,16 @@ fn draw(
                     let full_x = (chunk_x * 16) + x;
                     let full_y = (chunk_y * 16) + y;
                     let coord = GridLocation(full_x, full_y);
-                    /*
-                                    // Get noise value:
-                    f = noise1d (x/width);
-                    h = f * height + (height/2);  // scale and center at screen-center
-                                     */
-                    if full_x == 0 && full_y == 0 {
+
+                    if full_x == PLAYER_START.0 && full_y == PLAYER_START.1 {
                         continue;
                     }
                     let f =
                         noise.get([(full_x as f32 / 16.0) as f64, (full_y as f32 / 16.0) as f64]);
                     let noise_value = f * 16.0 + (16.0 / 2.0);
 
-                    // scale and center at screen-center
-                    // TODO see https://stackoverflow.com/a/10225718
-                    if noise_value > 3.0 {
-                        setup_wall(coord, commands, &mut materials);
+                    if noise_value > 4.8 {
+                        setup_wall(coord, commands, &asset_server, &mut texture_atlases);
                     }
                 }
             }

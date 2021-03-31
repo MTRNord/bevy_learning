@@ -6,7 +6,7 @@ use crate::GameState;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
-pub const PLAYER_START: GridLocation = GridLocation(0, 0);
+pub const PLAYER_START: GridLocation = GridLocation(2, -2);
 
 pub struct PlayerPlugin;
 

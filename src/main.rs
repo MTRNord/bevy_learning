@@ -45,7 +45,7 @@ fn setup(commands: &mut Commands /*mut kurinji: ResMut<Kurinji>*/) {
         .spawn(OrthographicCameraBundle {
             orthographic_projection: OrthographicProjection {
                 far: 1024.0,  // This gives us 1024 layers,
-                scale: 150.0, // How many pixels high in the game
+                scale: 160.0, // How many pixels high in the game
                 scaling_mode: ScalingMode::FixedVertical,
                 ..Default::default()
             },
