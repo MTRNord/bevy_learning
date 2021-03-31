@@ -1,3 +1,3 @@
 pub struct Health {
-    pub hp: f32,
+    pub hp: f64,
 }

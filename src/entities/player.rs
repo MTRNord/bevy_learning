@@ -3,7 +3,7 @@ use crate::entities::markers::Player;
 use bevy::prelude::*;
 
 #[derive(Debug)]
-pub struct PlayerXp(pub u32);
+pub struct PlayerXp(pub f64);
 
 pub struct PlayerName(pub String);
 

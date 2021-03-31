@@ -11,7 +11,7 @@ bevy_prototype_inline_assets = "0.1.1"
 bevy_discovery = "0.1.0"
 #kurinji = "1.0.5"
 bevy_ldtk = {version = "0.4.2", features = ["bevy-unstable"]}
-rayon = "1.5"
+noise = "0.7.0"
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"

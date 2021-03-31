@@ -1,7 +1,8 @@
+use crate::entities::markers::Wall;
 use crate::GameState;
 use bevy::prelude::*;
-use bevy_ldtk::{LdtkMap, LdtkMapBundle, LdtkMapConfig};
-use rayon::prelude::*;
+use noise::{Abs, NoiseFn, OpenSimplex};
+use std::ops;
 
 pub struct MainCamera;
 
@@ -13,79 +14,98 @@ pub struct WorldState {
     pub requested_level: usize,
     pub world: Option<Entity>,
     pub collisions: Vec<Vec2>,
+    pub world_noise: OpenSimplex,
 }
 
 pub struct WorldPlugin;
 
-impl Plugin for WorldPlugin {
-    fn build(&self, app: &mut AppBuilder) {
-        app.add_system(draw.system())
-            .add_system(setup_collisions.system());
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+pub struct GridLocation(pub i32, pub i32);
+
+impl ops::Add<GridLocation> for GridLocation {
+    type Output = GridLocation;
+
+    fn add(self, rhs: GridLocation) -> Self::Output {
+        GridLocation(self.0 + rhs.0, self.1 + rhs.1)
     }
 }
 
-pub fn setup_collisions(
-    map_query: Query<&Handle<LdtkMap>>,
-    map_assets: Res<Assets<LdtkMap>>,
-    mut game_state: ResMut<GameState>,
-) {
-    if game_state.world_state.collisions_loaded
-        && game_state.world_state.level == game_state.world_state.requested_level
-    {
-        return;
-    }
-
-    // Loop through all of the maps
-    for map_handle in map_query.iter() {
-        // We have to `if let` here because asset server may not have finished loading
-        // the map yet.
-        if let Some(map) = map_assets.get(map_handle) {
-            let level_idx = game_state.world_state.level;
-
-            // Get the level from the project
-            let level = &map.project.levels[level_idx];
-
-            // Find the collision layer
-            let collision_layer = level
-                .layer_instances
-                .as_ref() // get a reference to the layer instances
-                .unwrap() // Unwrap the option ( this could be None, if there are no layers )
-                .iter() // Iterate over the layers
-                .find(|&x| x.__identifier == "Collisions") // Filter on the one we want
-                .unwrap(); // Unwrap it ( would be None if it could not find a layer "Collisions" )
-
-            // Calculate collider center coordinates
-            game_state.world_state.collisions = collision_layer
-                .int_grid_csv
-                .clone()
-                .into_par_iter()
-                .enumerate()
-                .filter(|(_, object)| *object != 2 && *object != 0)
-                .map(|(i, _)| {
-                    one_d_to_two_d_coordinate(i as f32, collision_layer.__c_wid as f32, 16.0, 16.0)
-                })
-                .collect();
-            game_state.world_state.collisions_loaded = true;
+impl From<Vec2> for GridLocation {
+    fn from(vec: Vec2) -> Self {
+        Self {
+            0: vec.x.round() as i32,
+            1: vec.y.round() as i32,
         }
     }
 }
 
-fn one_d_to_two_d_coordinate(
-    coordinate: f32,
-    row_length: f32,
-    tile_width: f32,
-    tile_height: f32,
-) -> Vec2 {
-    Vec2::new(
-        ((coordinate % row_length).round() * tile_width + 11.0).round() as f32,
-        (-((coordinate / row_length).round() * tile_height + 8.0)).round() as f32,
-    )
+impl From<[f64; 2]> for GridLocation {
+    fn from(coords: [f64; 2]) -> Self {
+        Self {
+            0: coords[0] as i32,
+            1: coords[1] as i32,
+        }
+    }
+}
+
+impl From<GridLocation> for [f64; 2] {
+    fn from(loc: GridLocation) -> Self {
+        [loc.0 as f64, loc.1 as f64]
+    }
+}
+
+const LERP_LAMBDA: f32 = 5.0;
+
+fn render_grid_location_to_transform(
+    time: Res<Time>,
+    mut query: Query<(&GridLocation, &mut Transform)>,
+) {
+    for (grid_location, mut transform) in query.iter_mut() {
+        let target_x = SPRITE_WIDTH * grid_location.0 as f32;
+        transform.translation.x = transform.translation.x
+            * (1.0 - LERP_LAMBDA * time.delta_seconds())
+            + target_x * LERP_LAMBDA * time.delta_seconds();
+        let target_y = SPRITE_WIDTH * grid_location.1 as f32;
+        transform.translation.y = transform.translation.y
+            * (1.0 - LERP_LAMBDA * time.delta_seconds())
+            + target_y * LERP_LAMBDA * time.delta_seconds();
+    }
+}
+
+impl Plugin for WorldPlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_system(draw.system())
+            .add_system(render_grid_location_to_transform.system());
+    }
+}
+
+pub const SPRITE_WIDTH: f32 = 16.0;
+pub const SPRITE_HEIGHT: f32 = 16.0;
+
+fn setup_wall(
+    grid_location: GridLocation,
+    commands: &mut Commands,
+    materials: &mut ResMut<Assets<ColorMaterial>>,
+) {
+    commands
+        .spawn(SpriteBundle {
+            material: materials.add(Color::rgb(0.1, 0.1, 0.1).into()),
+            transform: Transform::from_translation(Vec3::new(
+                SPRITE_WIDTH * grid_location.0 as f32,
+                SPRITE_HEIGHT * grid_location.1 as f32,
+                -1.0,
+            )),
+            sprite: Sprite::new(Vec2::new(SPRITE_WIDTH, SPRITE_HEIGHT)),
+            ..Default::default()
+        })
+        .with(grid_location)
+        .with(Wall);
 }
 
 fn draw(
     commands: &mut Commands,
-    asset_server: Res<AssetServer>,
     mut game_state: ResMut<GameState>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     if game_state.world_state.map_loaded
         && game_state.world_state.level == game_state.world_state.requested_level
@@ -93,29 +113,31 @@ fn draw(
         return;
     }
 
-    if let Some(world) = game_state.world_state.world {
-        commands.remove::<LdtkMapBundle>(world);
+    game_state.world_state.world_noise = OpenSimplex::new();
+    let noise = Abs::new(&game_state.world_state.world_noise);
+
+    for chunk_y in -2..2 {
+        for chunk_x in -2..2 {
+            for y in -16..16 {
+                for x in -16..16 {
+                    let full_x = (chunk_x * 32) + x;
+                    let full_y = (chunk_y * 32) + y;
+                    let coord = GridLocation(full_x, full_y);
+                    if full_x == 0 && full_y == 0 {
+                        continue;
+                    }
+                    let noise_value = noise.get(Into::<[f64; 2]>::into(coord));
+                    //println!("X: {}, Y: {}, Noise: {}", x, y, noise_value);
+
+                    // scale and center at screen-center
+                    // TODO see https://stackoverflow.com/a/10225718
+                    if noise_value < 0.2 {
+                        setup_wall(coord, commands, &mut materials);
+                    }
+                }
+            }
+        }
     }
-
-    commands // Spawn a map bundle
-        .spawn(LdtkMapBundle {
-            // Specify the path to the map asset to load
-            map: asset_server.load("map.ldtk"),
-            config: LdtkMapConfig {
-                // Automatically set the clear color to the LDtk background color
-                set_clear_color: true,
-                // You can specify a scale or leave it set to 1 for 1 to 1 pixel size
-                scale: 1.0,
-                // Set which level to load out of the map or leave it to 0 for the default level
-                level: game_state.world_state.requested_level,
-                // Tell the map to center around it's `Transform` instead of putting the top-left
-                // corner of the map at the origin `Transform`.
-                center_map: false,
-            },
-            ..Default::default()
-        });
-
-    game_state.world_state.world = commands.current_entity();
 
     game_state.world_state.level = game_state.world_state.requested_level;
     game_state.world_state.map_loaded = true;
