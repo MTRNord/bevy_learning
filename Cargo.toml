@@ -12,6 +12,7 @@ bevy_discovery = "0.1.0"
 #kurinji = "1.0.5"
 bevy_ldtk = {version = "0.4.2", features = ["bevy-unstable"]}
 noise = "0.7.0"
+rand = "0.8.3"
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"

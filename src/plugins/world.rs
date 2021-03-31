@@ -1,7 +1,8 @@
 use crate::entities::markers::Wall;
 use crate::GameState;
 use bevy::prelude::*;
-use noise::{Abs, NoiseFn, OpenSimplex};
+use noise::{NoiseFn, OpenSimplex, Seedable};
+use rand::Rng;
 use std::ops;
 
 pub struct MainCamera;
@@ -15,6 +16,7 @@ pub struct WorldState {
     pub world: Option<Entity>,
     pub collisions: Vec<Vec2>,
     pub world_noise: OpenSimplex,
+    pub seed: Option<u32>,
 }
 
 pub struct WorldPlugin;
@@ -113,8 +115,14 @@ fn draw(
         return;
     }
 
-    game_state.world_state.world_noise = OpenSimplex::new();
-    let noise = Abs::new(&game_state.world_state.world_noise);
+    if game_state.world_state.seed.is_none() {
+        let mut rng = rand::thread_rng();
+        game_state.world_state.seed = Some(rng.gen());
+    }
+
+    game_state.world_state.world_noise =
+        OpenSimplex::new().set_seed(game_state.world_state.seed.unwrap());
+    let noise = &game_state.world_state.world_noise;
 
     for chunk_y in -2..2 {
         for chunk_x in -2..2 {
@@ -123,15 +131,21 @@ fn draw(
                     let full_x = (chunk_x * 16) + x;
                     let full_y = (chunk_y * 16) + y;
                     let coord = GridLocation(full_x, full_y);
+                    /*
+                                    // Get noise value:
+                    f = noise1d (x/width);
+                    h = f * height + (height/2);  // scale and center at screen-center
+                                     */
                     if full_x == 0 && full_y == 0 {
                         continue;
                     }
-                    let noise_value = noise.get(Into::<[f64; 2]>::into(coord));
-                    //println!("X: {}, Y: {}, Noise: {}", x, y, noise_value);
+                    let f =
+                        noise.get([(full_x as f32 / 16.0) as f64, (full_y as f32 / 16.0) as f64]);
+                    let noise_value = f * 16.0 + (16.0 / 2.0);
 
                     // scale and center at screen-center
                     // TODO see https://stackoverflow.com/a/10225718
-                    if noise_value < 0.2 {
+                    if noise_value > 3.0 {
                         setup_wall(coord, commands, &mut materials);
                     }
                 }

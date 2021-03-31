@@ -3917,6 +3917,7 @@ dependencies = [
  "bevy_ldtk",
  "bevy_prototype_inline_assets",
  "noise",
+ "rand 0.8.3",
 ]
 
 [[package]]

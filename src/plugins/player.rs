@@ -1,7 +1,7 @@
 use crate::entities::common::Health;
 use crate::entities::markers::{Movable, Player, Wall};
 use crate::entities::player::{PlayerBundle, PlayerName, PlayerXp};
-use crate::plugins::world::{GridLocation, SPRITE_HEIGHT, SPRITE_WIDTH};
+use crate::plugins::world::{GridLocation, MainCamera, SPRITE_HEIGHT, SPRITE_WIDTH};
 use crate::GameState;
 use bevy::prelude::*;
 use std::collections::HashMap;
@@ -80,6 +80,7 @@ fn player_movement(
         Query<(Entity, &Movable, &mut GridLocation)>,
         Query<(Entity, &PlayerBundle, &GridLocation)>,
     )>,
+    mut camera: Query<&mut GridLocation, With<MainCamera>>,
 ) {
     let _shift = keyboard_input.pressed(KeyCode::LShift) || keyboard_input.pressed(KeyCode::RShift);
     let _ctrl =
@@ -152,8 +153,10 @@ fn player_movement(
         to_move.append(&mut tmp_to_move);
     }
 
+    let mut camera_grid_location = camera.iter_mut().next().unwrap();
     for loc in to_move {
         let mut grid_location: Mut<GridLocation> = set.q0_mut().get_component_mut(loc).unwrap();
         *grid_location = *grid_location + delta;
+        *camera_grid_location = *camera_grid_location + delta;
     }
 }
