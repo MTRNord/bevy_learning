@@ -7,14 +7,19 @@ use crate::plugins::{
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::render::camera::{OrthographicProjection, ScalingMode};
 use bevy::{prelude::*, window::WindowMode};
+use std::collections::HashMap;
 
 mod entities;
 mod plugins;
+
+#[derive(Default)]
+pub struct AssetsLoading(Vec<HandleUntyped>);
 
 #[derive(Default, Clone)]
 pub struct GameState {
     pub spawned: bool,
     pub world_state: WorldState,
+    pub asset_map: HashMap<String, Handle<Texture>>,
 }
 
 fn main() {
@@ -29,6 +34,7 @@ fn main() {
             ..Default::default()
         })
         .init_resource::<GameState>()
+        .init_resource::<AssetsLoading>()
         .add_plugins(DefaultPlugins)
         .add_plugin(FrameTimeDiagnosticsPlugin::default())
         .add_plugin(LogDiagnosticsPlugin::default())
@@ -39,7 +45,12 @@ fn main() {
         .run();
 }
 
-fn setup(commands: &mut Commands /*mut kurinji: ResMut<Kurinji>*/) {
+fn setup(
+    commands: &mut Commands,
+    mut loading: ResMut<AssetsLoading>,
+    asset_server: Res<AssetServer>,
+    mut game_state: ResMut<GameState>,
+) {
     commands
         // Spawn a camera
         .spawn(OrthographicCameraBundle {
@@ -58,4 +69,18 @@ fn setup(commands: &mut Commands /*mut kurinji: ResMut<Kurinji>*/) {
         })
         .with(PLAYER_START)
         .with(MainCamera);
+
+    let sunny_texture_handle = asset_server.load("tilesets/SunnyLand_by_Ansimuz-extended.png");
+    loading.0.push(sunny_texture_handle.clone_untyped());
+    game_state
+        .asset_map
+        .insert("Sunnyland".into(), sunny_texture_handle);
+    let dungeon_tileset_texture_handle =
+        asset_server.load("tilesets/0x72_DungeonTilesetII_v1.3.png");
+    loading
+        .0
+        .push(dungeon_tileset_texture_handle.clone_untyped());
+    game_state
+        .asset_map
+        .insert("DungeonTileset".into(), dungeon_tileset_texture_handle);
 }

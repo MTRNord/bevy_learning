@@ -2,7 +2,8 @@ use crate::entities::common::Health;
 use crate::entities::markers::{Movable, Player, Wall};
 use crate::entities::player::{PlayerBundle, PlayerName, PlayerXp};
 use crate::plugins::world::{GridLocation, MainCamera, SPRITE_HEIGHT, SPRITE_WIDTH};
-use crate::GameState;
+use crate::{AssetsLoading, GameState};
+use bevy::asset::LoadState;
 use bevy::prelude::*;
 use std::collections::HashMap;
 
@@ -13,8 +14,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_system(player_movement.system())
-            .add_system(setup_player.system())
-            .add_startup_system(setup_player.system());
+            .add_system(setup_player.system());
     }
 }
 
@@ -23,14 +23,33 @@ fn setup_player(
     asset_server: Res<AssetServer>,
     texture_atlases: ResMut<Assets<TextureAtlas>>,
     game_state: ResMut<GameState>,
+    loading: Res<AssetsLoading>,
+    textures: Res<Assets<Texture>>,
 ) {
     if !game_state.spawned {
+        let mut ready = true;
+        for handle in loading.0.iter() {
+            match asset_server.get_load_state(handle) {
+                LoadState::Failed => {
+                    ready = false;
+                }
+                LoadState::Loaded => {}
+                _ => {
+                    ready = false;
+                }
+            }
+        }
+
+        if !ready {
+            return;
+        }
+
         setup_player_internal(
             PLAYER_START,
             &mut commands,
-            asset_server,
             texture_atlases,
             game_state,
+            &textures,
         );
     }
 }
@@ -38,12 +57,20 @@ fn setup_player(
 fn setup_player_internal(
     grid_location: GridLocation,
     commands: &mut Commands,
-    asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut game_state: ResMut<GameState>,
+    textures: &Res<Assets<Texture>>,
 ) {
-    let texture_handle = asset_server.load("tilesets/0x72_DungeonTilesetII_v1.3.png");
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(16.0, 16.0), 32, 32);
+    let texture_handle = game_state.asset_map.get("DungeonTileset").unwrap();
+    let texture: &Texture = textures.get(texture_handle.id).unwrap();
+    let cols = texture.size.width / 16;
+    let rows = texture.size.height / 16;
+    let texture_atlas = TextureAtlas::from_grid(
+        texture_handle.clone(),
+        Vec2::new(16.0, 16.0),
+        cols as usize,
+        rows as usize,
+    );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
 
     // Spawn player

@@ -1,6 +1,7 @@
 use crate::entities::markers::Wall;
 use crate::plugins::player::PLAYER_START;
-use crate::GameState;
+use crate::{AssetsLoading, GameState};
+use bevy::asset::LoadState;
 use bevy::prelude::*;
 use noise::{NoiseFn, OpenSimplex, Seedable};
 use rand::Rng;
@@ -88,16 +89,25 @@ pub const SPRITE_HEIGHT: f32 = 16.0;
 fn setup_wall(
     grid_location: GridLocation,
     commands: &mut Commands,
-    asset_server: &Res<AssetServer>,
+    game_state: &ResMut<GameState>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    textures: &Res<Assets<Texture>>,
 ) {
-    let texture_handle = asset_server.load("tilesets/SunnyLand_by_Ansimuz-extended.png");
-    let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(16.0, 16.0), 23, 21);
+    let texture_handle = game_state.asset_map.get("Sunnyland").unwrap();
+    let texture: &Texture = textures.get(texture_handle.id).unwrap();
+    let cols = texture.size.width / 16;
+    let rows = texture.size.height / 16;
+    let texture_atlas = TextureAtlas::from_grid(
+        texture_handle.clone(),
+        Vec2::new(17.0, 17.0),
+        cols as usize,
+        rows as usize,
+    );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     commands
         .spawn(SpriteSheetBundle {
             sprite: TextureAtlasSprite {
-                index: 6,
+                index: 48,
                 ..Default::default()
             },
             transform: Transform::from_translation(Vec3::new(
@@ -115,12 +125,31 @@ fn setup_wall(
 fn draw(
     commands: &mut Commands,
     mut game_state: ResMut<GameState>,
-    asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+    server: Res<AssetServer>,
+    loading: Res<AssetsLoading>,
+    textures: Res<Assets<Texture>>,
 ) {
     if game_state.world_state.map_loaded
         && game_state.world_state.level == game_state.world_state.requested_level
     {
+        return;
+    }
+
+    let mut ready = true;
+    for handle in loading.0.iter() {
+        match server.get_load_state(handle) {
+            LoadState::Failed => {
+                ready = false;
+            }
+            LoadState::Loaded => {}
+            _ => {
+                ready = false;
+            }
+        }
+    }
+
+    if !ready {
         return;
     }
 
@@ -149,7 +178,13 @@ fn draw(
                     let noise_value = f * 16.0 + (16.0 / 2.0);
 
                     if noise_value > 4.8 {
-                        setup_wall(coord, commands, &asset_server, &mut texture_atlases);
+                        setup_wall(
+                            coord,
+                            commands,
+                            &game_state,
+                            &mut texture_atlases,
+                            &textures,
+                        );
                     }
                 }
             }
