@@ -55,7 +55,7 @@ fn setup(
         .spawn_bundle(OrthographicCameraBundle {
             orthographic_projection: OrthographicProjection {
                 far: 1024.0,  // This gives us 1024 layers,
-                scale: 160.0, // How many pixels high in the game
+                scale: 200.0, // How many pixels high in the game
                 scaling_mode: ScalingMode::FixedVertical,
                 ..Default::default()
             },

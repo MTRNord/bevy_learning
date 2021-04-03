@@ -97,11 +97,10 @@ struct WallBundle {
 
 fn setup_wall(
     grid_location: GridLocation,
-    commands: &mut Commands,
     game_state: &ResMut<GameState>,
     texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
     textures: &Res<Assets<Texture>>,
-) {
+) -> WallBundle {
     let texture_handle = game_state.asset_map.get("Sunnyland").unwrap();
     let texture: &Texture = textures.get(texture_handle.id).unwrap();
     let cols = texture.size.width / 16;
@@ -113,7 +112,7 @@ fn setup_wall(
         rows as usize,
     );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    commands.spawn_bundle(WallBundle {
+    WallBundle {
         grid_location,
         _wall: Wall,
         sprite: SpriteSheetBundle {
@@ -129,7 +128,7 @@ fn setup_wall(
             texture_atlas: texture_atlas_handle,
             ..Default::default()
         },
-    });
+    }
 }
 
 fn draw(
@@ -174,33 +173,47 @@ fn draw(
 
     for chunk_y in -2..2 {
         for chunk_x in -2..2 {
-            for y in -8..8 {
-                for x in -8..8 {
-                    let full_x = (chunk_x * 16) + x;
-                    let full_y = (chunk_y * 16) + y;
-                    let coord = GridLocation(full_x, full_y);
-
-                    if full_x == PLAYER_START.0 && full_y == PLAYER_START.1 {
-                        continue;
-                    }
-                    let f =
-                        noise.get([(full_x as f32 / 16.0) as f64, (full_y as f32 / 16.0) as f64]);
-                    let noise_value = f * 16.0 + (16.0 / 2.0);
-
-                    if noise_value > 4.8 {
-                        setup_wall(
-                            coord,
-                            &mut commands,
-                            &game_state,
-                            &mut texture_atlases,
-                            &textures,
-                        );
-                    }
-                }
-            }
+            let chunk = generate_chunk(
+                chunk_x,
+                chunk_y,
+                noise,
+                &game_state,
+                &mut texture_atlases,
+                &textures,
+            );
+            commands.spawn_batch(chunk);
         }
     }
 
     game_state.world_state.level = game_state.world_state.requested_level;
     game_state.world_state.map_loaded = true;
+}
+
+fn generate_chunk(
+    chunk_x: i32,
+    chunk_y: i32,
+    noise: &OpenSimplex,
+    game_state: &ResMut<GameState>,
+    texture_atlases: &mut ResMut<Assets<TextureAtlas>>,
+    textures: &Res<Assets<Texture>>,
+) -> Vec<WallBundle> {
+    let mut bundles = Vec::new();
+    for y in -8..8 {
+        for x in -8..8 {
+            let full_x = (chunk_x * 16) + x;
+            let full_y = (chunk_y * 16) + y;
+            let coord = GridLocation(full_x, full_y);
+
+            if full_x == PLAYER_START.0 && full_y == PLAYER_START.1 {
+                continue;
+            }
+            let f = noise.get([(full_x as f32 / 16.0) as f64, (full_y as f32 / 16.0) as f64]);
+            let noise_value = f * 16.0 + (16.0 / 2.0);
+
+            if noise_value > 4.8 {
+                bundles.push(setup_wall(coord, game_state, texture_atlases, textures));
+            }
+        }
+    }
+    bundles
 }
