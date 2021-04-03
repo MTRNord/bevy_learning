@@ -10,13 +10,13 @@ edition = "2018"
 bevy_prototype_inline_assets = "0.1.1"
 bevy_discovery = "0.1.0"
 #kurinji = "1.0.5"
-bevy_ldtk = {version = "0.4.2", features = ["bevy-unstable"]}
+#bevy_ldtk = {version = "0.4.2", features = ["bevy-unstable"]}
 noise = "0.7.0"
 rand = "0.8.3"
 
 [dependencies.bevy]
 git = "https://github.com/bevyengine/bevy"
-rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"
+rev = "f520a341d5737600dbf89015b7729109d67cf041"
 features = ["dynamic"]
 
 #[dependencies.bevy_rapier2d]
@@ -25,7 +25,7 @@ features = ["dynamic"]
 #features = [ "simd-stable", "parallel" ]
 
 [patch.crates-io]
-bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "079b3ade89195ef1aa4bcf1f8c0740a6572b84b6"}
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "f520a341d5737600dbf89015b7729109d67cf041"}
 
 # Enable optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]

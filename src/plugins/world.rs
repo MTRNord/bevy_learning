@@ -86,6 +86,15 @@ impl Plugin for WorldPlugin {
 pub const SPRITE_WIDTH: f32 = 16.0;
 pub const SPRITE_HEIGHT: f32 = 16.0;
 
+#[derive(Bundle)]
+struct WallBundle {
+    pub grid_location: GridLocation,
+    pub _wall: Wall,
+
+    #[bundle]
+    pub sprite: SpriteSheetBundle,
+}
+
 fn setup_wall(
     grid_location: GridLocation,
     commands: &mut Commands,
@@ -104,8 +113,10 @@ fn setup_wall(
         rows as usize,
     );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-    commands
-        .spawn(SpriteSheetBundle {
+    commands.spawn_bundle(WallBundle {
+        grid_location,
+        _wall: Wall,
+        sprite: SpriteSheetBundle {
             sprite: TextureAtlasSprite {
                 index: 48,
                 ..Default::default()
@@ -117,13 +128,12 @@ fn setup_wall(
             )),
             texture_atlas: texture_atlas_handle,
             ..Default::default()
-        })
-        .with(grid_location)
-        .with(Wall);
+        },
+    });
 }
 
 fn draw(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut game_state: ResMut<GameState>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     server: Res<AssetServer>,
@@ -180,7 +190,7 @@ fn draw(
                     if noise_value > 4.8 {
                         setup_wall(
                             coord,
-                            commands,
+                            &mut commands,
                             &game_state,
                             &mut texture_atlases,
                             &textures,

@@ -28,7 +28,7 @@ fn main() {
             title: "Random test game".to_string(),
             width: 1024.,
             height: 720.,
-            vsync: true,
+            vsync: false,
             resizable: true,
             mode: WindowMode::Windowed,
             ..Default::default()
@@ -46,14 +46,13 @@ fn main() {
 }
 
 fn setup(
-    commands: &mut Commands,
+    mut commands: Commands,
     mut loading: ResMut<AssetsLoading>,
     asset_server: Res<AssetServer>,
     mut game_state: ResMut<GameState>,
 ) {
     commands
-        // Spawn a camera
-        .spawn(OrthographicCameraBundle {
+        .spawn_bundle(OrthographicCameraBundle {
             orthographic_projection: OrthographicProjection {
                 far: 1024.0,  // This gives us 1024 layers,
                 scale: 160.0, // How many pixels high in the game
@@ -67,8 +66,8 @@ fn setup(
             )),
             ..OrthographicCameraBundle::new_2d()
         })
-        .with(PLAYER_START)
-        .with(MainCamera);
+        .insert(PLAYER_START)
+        .insert(MainCamera);
 
     let sunny_texture_handle = asset_server.load("tilesets/SunnyLand_by_Ansimuz-extended.png");
     loading.0.push(sunny_texture_handle.clone_untyped());

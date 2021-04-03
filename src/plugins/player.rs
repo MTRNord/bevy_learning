@@ -19,7 +19,7 @@ impl Plugin for PlayerPlugin {
 }
 
 fn setup_player(
-    mut commands: &mut Commands,
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     texture_atlases: ResMut<Assets<TextureAtlas>>,
     game_state: ResMut<GameState>,
@@ -75,7 +75,7 @@ fn setup_player_internal(
 
     // Spawn player
     commands
-        .spawn(SpriteSheetBundle {
+        .spawn_bundle(SpriteSheetBundle {
             sprite: TextureAtlasSprite {
                 index: 362,
                 ..Default::default()
@@ -88,9 +88,9 @@ fn setup_player_internal(
             texture_atlas: texture_atlas_handle,
             ..Default::default()
         })
-        .with(grid_location)
-        .with(Movable)
-        .with(PlayerBundle {
+        .insert(grid_location)
+        .insert(Movable)
+        .insert(PlayerBundle {
             xp: PlayerXp(0.0),
             name: PlayerName("Player 1".into()),
             health: Health { hp: 100.0 },
@@ -102,12 +102,12 @@ fn setup_player_internal(
 #[allow(clippy::type_complexity)]
 fn player_movement(
     keyboard_input: Res<Input<KeyCode>>,
-    mut wall_query: Query<(Entity, &Wall, &GridLocation)>,
     mut set: QuerySet<(
         Query<(Entity, &Movable, &mut GridLocation)>,
-        Query<(Entity, &PlayerBundle, &GridLocation)>,
+        Query<(Entity, &Player, &GridLocation)>,
+        Query<(Entity, &Wall, &GridLocation)>,
+        Query<&mut GridLocation, With<MainCamera>>,
     )>,
-    mut camera: Query<&mut GridLocation, With<MainCamera>>,
 ) {
     let _shift = keyboard_input.pressed(KeyCode::LShift) || keyboard_input.pressed(KeyCode::RShift);
     let _ctrl =
@@ -135,7 +135,7 @@ fn player_movement(
 
     let immovables: HashMap<GridLocation, Entity> = {
         let mut tmp = HashMap::new();
-        for (wall_entity, _wall, wall_grid_location) in wall_query.iter_mut() {
+        for (wall_entity, _wall, wall_grid_location) in set.q2_mut().iter_mut() {
             tmp.insert(
                 GridLocation(wall_grid_location.0, wall_grid_location.1),
                 wall_entity,
@@ -180,10 +180,13 @@ fn player_movement(
         to_move.append(&mut tmp_to_move);
     }
 
-    let mut camera_grid_location = camera.iter_mut().next().unwrap();
     for loc in to_move {
+        {
+            let mut camera_grid_location = set.q3_mut().iter_mut().next().unwrap();
+            *camera_grid_location = *camera_grid_location + delta;
+        }
+
         let mut grid_location: Mut<GridLocation> = set.q0_mut().get_component_mut(loc).unwrap();
         *grid_location = *grid_location + delta;
-        *camera_grid_location = *camera_grid_location + delta;
     }
 }
